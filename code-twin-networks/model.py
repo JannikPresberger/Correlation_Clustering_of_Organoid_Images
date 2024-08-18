@@ -43,27 +43,12 @@ def build_embedding_network(
     return embedding_network
 
 
-
 class SiameseNetwork(nn.Module):
-    """
-        Siamese network for image similarity estimation.
-        The network is composed of two identical networks, one for each input.
-        The output of each network is concatenated and passed to a linear layer.
-        The output of the linear layer passed through a sigmoid function.
-        `"FaceNet" <https://arxiv.org/pdf/1503.03832.pdf>`_ is a variant of the Siamese network.
-        This implementation varies from FaceNet as we use the `ResNet-18` model from
-        `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_ as our feature extractor.
-        In addition, we aren't using `TripletLoss` as the MNIST dataset is simple, so `BCELoss` can do the trick.
-    """
-
     def __init__(self,
                  input_type: InputType,
-                 embedding_dimension: int,
-                 return_penultimate: bool = False
+                 embedding_dimension: int
                  ):
         super(SiameseNetwork, self).__init__()
-
-        self.return_penultimate = return_penultimate
 
         self.kwargs = {
             'input_type': input_type,
@@ -77,10 +62,6 @@ class SiameseNetwork(nn.Module):
 
         # initialize the weights
         self.embedding.apply(self.init_weights)
-
-        self.fc = None
-        self.merge_layer = None
-        self.sigmoid = None
 
         # build head
         self.merge_layer = Concatenation()
@@ -112,14 +93,11 @@ class SiameseNetwork(nn.Module):
         if self.merge_layer:
             outputs = self.merge_layer(output1, output2)
 
-            penultimate = self.fc.forward(outputs)
+            outputs = self.fc.forward(outputs)
 
-            outputs = self.sigmoid(penultimate)
+            outputs = self.sigmoid(outputs)
 
-            if self.return_penultimate:
-                return outputs.view(outputs.size()[0]), penultimate
-            else:
-                return outputs.view(outputs.size()[0])
+            return outputs.view(outputs.size()[0])
 
         return output1, output2
 

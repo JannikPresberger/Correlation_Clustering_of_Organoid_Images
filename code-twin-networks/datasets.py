@@ -489,7 +489,6 @@ class OnlineDeterministicOrganoidHistPairDataset(Dataset):
         return hist_1, hist_2, target
 
 
-
 class OnlineRandomOrganoidHistPairDataset(Dataset):
     def __init__(self,
                  data_dirs: Union[str, List[str]],

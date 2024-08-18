@@ -602,54 +602,32 @@ class Trainer:
         self.model.train()
         self.metrics.set_train()
 
-        # we aren't using `TripletLoss` as the MNIST dataset is simple, so `BCELoss` can do the trick.
-
-        # acc = Accuracy(pos_min=0, pos_max=2.0, name="Accuracy", precision=3)
-        # avg_same_distance = AverageDistanceMetric(target=1, name="AverageSameDistance")
-        # avg_not_same_distance = AverageDistanceMetric(target=0, name="AverageNotSameDistance")
-        # metrics = MetricContainer([acc, avg_same_distance, avg_not_same_distance])
-
         logs = {
             "epoch": epoch,
-            "bce_loss": 0,
-            "reg_loss": 0
+            "loss": 0,
         }
 
         batch_idx = 0
         for batch_idx, (images_1, images_2, targets) in enumerate(train_loader):
             images_1, images_2, targets = images_1.to(self.device), images_2.to(self.device), targets.to(self.device)
             self.optimizer.zero_grad()
-            if isinstance(self.model, SiameseNetwork) and self.model.return_penultimate:
-                outputs, penultimate = self.model(images_1, images_2)
-            elif isinstance(self.model, SiameseNetwork) and not self.model.return_penultimate:
-                outputs = self.model(images_1, images_2)
-            else:
-                raise ValueError("Network must be SiameseNetwork.")
+            outputs = self.model(images_1, images_2)
 
             self.metrics.update(outputs, targets)
-            bce_loss = self.criterion(outputs, targets)
-            logs["bce_loss"] += bce_loss.item()
-
-            if self.model.return_penultimate:
-                reg_loss = torch.mean(penultimate ** 2)
-                logs["reg_loss"] += reg_loss.item()
-                loss = bce_loss + self.output_regularizer * reg_loss
-            else:
-                loss = bce_loss
+            loss = self.criterion(outputs, targets)
+            logs["loss"] += loss.item()
 
             loss.backward()
             self.optimizer.step()
             if batch_idx % self.log_interval == 0:
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tBCELoss: {:.6f}\t RegLoss: {:.6f}\t'.format(
+                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tBCELoss: {:.6f}\t RegLoss: {:.6f}\t {}'.format(
                     epoch, batch_idx * len(images_1), len(train_loader.dataset),
                            100. * batch_idx / len(train_loader),
-                           logs["bce_loss"] / (batch_idx + 1),
-                           logs["reg_loss"] / (batch_idx + 1)) + self.metrics.summary_string()
-                      )
+                           logs["loss"] / (batch_idx + 1), self.metrics.summary_string()
+                      ))
                 if self.dry_run:
                     break
-        logs["bce_loss"] /= (batch_idx + 1)
-        logs["reg_loss"] /= (batch_idx + 1)
+        logs["loss"] /= (batch_idx + 1)
 
         logs.update(self.metrics.summary())
         self.metrics.reset()
@@ -659,13 +637,8 @@ class Trainer:
         self.model.eval()
         self.metrics.set_val()
 
-        # acc = Accuracy(pos_min=0, pos_max=2.0, name="Accuracy", precision=3)
-        # avg_same_distance = AverageDistanceMetric(target=1, name="AverageSameDistance")
-        # avg_not_same_distance = AverageDistanceMetric(target=0, name="AverageNotSameDistance")
-        # metrics = MetricContainer([acc, avg_same_distance, avg_not_same_distance])
         logs = {
-            "val_bce_loss": 0,
-            "val_reg_loss": 0,
+            "val_loss": 0,
             "epoch": epoch
         }
 
@@ -680,11 +653,7 @@ class Trainer:
                 else:
                     raise ValueError("Network must be SiameseNetwork.")
 
-                logs["val_bce_loss"] += self.criterion(outputs, targets).item()  # sum up batch loss
-
-                if self.model.return_penultimate:
-                    reg_loss = torch.mean(penultimate ** 2)
-                    logs["val_reg_loss"] += reg_loss.item()
+                logs["val_loss"] += self.criterion(outputs, targets).item()  # sum up batch loss
 
                 # similarities = nn.functional.pairwise_distance(outputs1, outputs2)
                 self.metrics.update(outputs, targets)
@@ -697,13 +666,8 @@ class Trainer:
                 if self.dry_run:
                     break
 
-        logs["val_bce_loss"] /= (batch_idx + 1)
-        logs["val_reg_loss"] /= (batch_idx + 1)
+        logs["val_loss"] /= (batch_idx + 1)
 
-        # for the 1st epoch, the average loss is 0.0001 and the accuracy 97-98%
-        # using default settings. After completing the 10th epoch, the average
-        # loss is 0.0000 and the accuracy 99.5-100% using default settings.
-        # todo: this to callback
         print('\nTest set: Average BCE loss: {:.4f}\t Average Reg. loss: {:.4f}\t'.format(logs["val_bce_loss"], logs[
             "val_reg_loss"]) + self.metrics.summary_string() + "\n")
 
@@ -722,7 +686,7 @@ def get_metrics() -> MetricContainer:
 
 def main():
     # Training settings
-    parser = argparse.ArgumentParser(description='PyTorch Siamese network Example')
+    parser = argparse.ArgumentParser(description='PyTorch Siamese network for Organoids')
     parser.add_argument('--data-dirs',
                         nargs='+',
                         default=["/run/media/dstein/789e1bf3-b0ea-4a6a-a533-79a346a1ac3e/Organoids New/split/"],
@@ -875,15 +839,6 @@ def main():
                         interpolation=torchvision.transforms.InterpolationMode.BILINEAR,
                         antialias=True
                     ),
-                    RandomApply(
-                        torchvision.transforms.ColorJitter(
-                            brightness=(0.5, 2.0),
-                            contrast=(0.5, 2.0),
-                            saturation=(0.5, 1.5),
-                            hue=(-0.05, 0.05)
-                        ),
-                        p=0.2
-                    ),
                     torchvision.transforms.RandomHorizontalFlip(p=0.2),
                     torchvision.transforms.RandomVerticalFlip(p=0.2),
                     RandomApply(RandomExclusiveListApply(
@@ -911,15 +866,7 @@ def main():
             split="train",
             num_batches=args.steps_per_epoch,
             batch_size=args.batch_size,
-            transforms=RandomApply(
-                torchvision.transforms.ColorJitter(
-                    brightness=(0.5, 2.0),
-                    contrast=(0.5, 2.0),
-                    saturation=(0.5, 1.5),
-                    hue=(-0.05, 0.05)
-                ),
-                p=0.2
-            )
+            transforms=None
         )
         # no transforms here
         test_dataset = OnlineDeterministicOrganoidHistPairDataset(
