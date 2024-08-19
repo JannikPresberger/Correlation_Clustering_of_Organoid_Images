@@ -15,6 +15,7 @@
 #include "helpers/reader.hxx"
 #include "andres/graph/multicut/ilp.hxx"
 #include "andres/ilp/gurobi.hxx"
+#include "helpers/argparse.hxx"
 
 typedef andres::graph::CompleteGraph<> Graph;
 typedef andres::RandError<double> RandError;
@@ -921,27 +922,19 @@ void convertHDF5(
 }
 
 
-void runCorrelationClusteringAnalysis(){
-    std::filesystem::path pathToModel = "../../histogram-models-colorjitter/p0.2-256x256-squarePad-color-jitter-correct/";
-
-    fromHDF5<float>(pathToModel / "analysis/test.h5", true);
-    fromHDF5<float>(pathToModel / "analysis/test-unseen.h5", true);
-    fromHDF5<float>(pathToModel / "analysis/test-and-unseen.h5", true);
-
-//    std::filesystem::path pathToModels = "/run/media/dstein/789e1bf3-b0ea-4a6a-a533-79a346a1ac3e/Organoids New/models/2024-03-04/";
-//
-//    for (const auto  & entry : std::filesystem::directory_iterator(pathToModels)){
-//        std::filesystem::path model = entry.path();
-//        std::cout << model << std::endl;
-//
-//        fromHDF5<float>(model / "analysis/test.h5", true);
-//        fromHDF5<float>(model / "analysis/test-unseen.h5", true);
-//        fromHDF5<float>(model / "analysis/test-and-unseen.h5", true);
-//}
-
+void runCorrelationClusteringAnalysis(std::filesystem::path const & modelDirectory){
+    fromHDF5<float>(modelDirectory / "analysis/test.h5", true);
+    fromHDF5<float>(modelDirectory / "analysis/test-unseen.h5", true);
+    fromHDF5<float>(modelDirectory / "analysis/test-and-unseen.h5", true);
 }
 
 
-int main() {
-    runCorrelationClusteringAnalysis();
+int main(int argc, char* argv[]) {
+    argparse::ArgumentParser parser("correlation-clustering");
+    parser.add_argument("--model-directory").default_value("../../models/tni-p0.0");
+    parser.parse_args(argc, argv);
+
+    std::cout << parser.get<std::string >("model-directory") << std::endl;
+
+    runCorrelationClusteringAnalysis(parser.get<std::string >("model-directory"));
 }

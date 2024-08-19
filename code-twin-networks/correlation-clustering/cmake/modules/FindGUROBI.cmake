@@ -3,7 +3,7 @@ set(GUROBI_ROOT_DIR "" CACHE PATH "GUROBI root directory.")
 STRING(REGEX MATCH "^[0-9]+" GUROBI_VERSION "$ENV{GUROBI_HOME}")
 
 find_path(GUROBI_INCLUDE_DIR gurobi_c++.h HINTS "$ENV{GUROBI_HOME}/include")
-find_library(GUROBI_LIBRARY libgurobi100.so HINTS $ENV{GUROBI_HOME}/lib)
+find_library(GUROBI_LIBRARY libgurobi110.so HINTS $ENV{GUROBI_HOME}/lib)
 find_library(GUROBI_CPP_LIBRARY libgurobi_c++.a HINTS $ENV{GUROBI_HOME}/lib)
 
 include(FindPackageHandleStandardArgs)
