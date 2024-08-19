@@ -12,7 +12,6 @@ import torchvision.transforms.functional as F
 from matplotlib import pyplot as plt
 from tifffile import imread
 from torch.utils.data import Dataset
-import albumentations as A
 from torchvision.transforms import Compose
 from torchvision.transforms.v2 import ToDtype
 
@@ -151,8 +150,7 @@ class RandomOrganoidHistPairDataset(Dataset):
 
 class RandomOrganoidPairDataset(Dataset):
     def __init__(self,
-                 data_dirs: str,
-                 split: str,
+                 data_dir: str,
                  num_batches: int = None,
                  batch_size: int = None,
                  transforms: torchvision.transforms.Compose = None
@@ -165,11 +163,15 @@ class RandomOrganoidPairDataset(Dataset):
 
         self.grouped_examples = defaultdict(list)
 
-        for data_dir in data_dirs:
-            for file_class in os.listdir(os.path.join(data_dir, split)):
-                directory = os.path.join(data_dir, split, file_class)
-                for file in os.listdir(directory):
-                    self.grouped_examples[file_class].append(os.path.join(directory, file))
+        for filename in os.listdir(data_dir):
+            if filename.endswith("_mask.tif"):
+                continue
+
+            identifier = int(os.path.splitext(filename)[0].split("_")[-1])
+            fileclass =  identifier // 100
+
+
+            self.grouped_examples[fileclass].append(os.path.join(data_dir, filename))
 
         self.organoid_classes = list(self.grouped_examples.keys())
 
@@ -286,8 +288,7 @@ class DeterministicOrganoidDataset(Dataset):
 
 class DeterministicOrganoidPairDataset(Dataset):
     def __init__(self,
-                 data_dirs: str,
-                 split: str,
+                 data_dirs: List[str],
                  transforms: nn.Module = None
                  ):
         super(DeterministicOrganoidPairDataset, self).__init__()
@@ -296,12 +297,19 @@ class DeterministicOrganoidPairDataset(Dataset):
         self.paths = []
         self.organoid_classes = []
 
+        if isinstance(data_dirs, str):
+            data_dirs = [data_dirs]
+
         for data_dir in data_dirs:
-            for file_class in os.listdir(os.path.join(data_dir, split)):
-                directory = os.path.join(data_dir, split, file_class)
-                for file in os.listdir(directory):
-                    self.paths.append(os.path.join(directory, file))
-                    self.organoid_classes.append(file_class)
+            for file in os.listdir(data_dir):
+                if file.endswith("_mask.tif"):
+                    continue
+
+                identifier = int(os.path.splitext(file)[0].split("_")[-1])
+                fileclass = identifier // 100
+
+                self.paths.append(os.path.join(data_dir, file))
+                self.organoid_classes.append(fileclass)
 
         self.num_examples = len(self.paths)
 
@@ -422,8 +430,7 @@ class DeterministicOrganoidHistPairDataset(Dataset):
 
 class OnlineDeterministicOrganoidHistPairDataset(Dataset):
     def __init__(self,
-                 data_dirs: Union[str, List[str]],
-                 split: str
+                 data_dirs: Union[str, List[str]]
                  ):
         super(OnlineDeterministicOrganoidHistPairDataset, self).__init__()
 
@@ -434,11 +441,15 @@ class OnlineDeterministicOrganoidHistPairDataset(Dataset):
         self.organoid_classes = []
 
         for data_dir in data_dirs:
-            for file_class in os.listdir(os.path.join(data_dir, split)):
-                directory = os.path.join(data_dir, split, file_class)
-                for file in os.listdir(directory):
-                    self.paths.append(os.path.join(directory, file))
-                    self.organoid_classes.append(file_class)
+            for filename in os.listdir(data_dir):
+                if filename.endswith("_mask.tif"):
+                    continue
+
+                identifier = int(os.path.splitext(filename)[0].split("_")[-1])
+                fileclass = identifier // 100
+
+                self.paths.append(os.path.join(data_dir, filename))
+                self.organoid_classes.append(fileclass)
 
         self.num_examples = len(self.paths)
 
@@ -477,7 +488,6 @@ class OnlineDeterministicOrganoidHistPairDataset(Dataset):
         image_2 = torch.tensor(image_2.astype(float), dtype=torch.float32).permute(2, 0, 1)[:3, :, :].div(2 ** 16 - 1)
         hist_2 = self.compute_histogram(np.uint16(image_2.permute(1, 2, 0).multiply(2 ** 16 - 1)))
 
-
         hist_1 = torch.tensor(hist_1.astype(float), dtype=torch.float32)
         hist_2 = torch.tensor(hist_2.astype(float), dtype=torch.float32)
 
@@ -492,7 +502,6 @@ class OnlineDeterministicOrganoidHistPairDataset(Dataset):
 class OnlineRandomOrganoidHistPairDataset(Dataset):
     def __init__(self,
                  data_dirs: Union[str, List[str]],
-                 split: str,
                  transforms,
                  num_batches: int = None,
                  batch_size: int = None
@@ -508,10 +517,14 @@ class OnlineRandomOrganoidHistPairDataset(Dataset):
         self.grouped_examples = defaultdict(list)
 
         for data_dir in data_dirs:
-            for file_class in os.listdir(os.path.join(data_dir, split)):
-                directory = os.path.join(data_dir, split, file_class)
-                for file in os.listdir(directory):
-                    self.grouped_examples[file_class].append(os.path.join(directory, file))
+            for filename in os.listdir(data_dir):
+                if filename.endswith("_mask.tif"):
+                    continue
+
+                identifier = int(os.path.splitext(filename)[0].split("_")[-1])
+                fileclass = identifier // 100
+
+                self.grouped_examples[fileclass].append(os.path.join(data_dir, filename))
 
         self.organoid_classes = list(self.grouped_examples.keys())
         self.num_examples = sum(map(lambda x: len(x), self.grouped_examples.values()))
@@ -553,7 +566,8 @@ class OnlineRandomOrganoidHistPairDataset(Dataset):
         # get the first image
         image_1 = imread(path_1)
         image_1 = torch.tensor(image_1.astype(float), dtype=torch.float32).permute(2, 0, 1)[:3, :, :].div(2**16 - 1)
-        image_1 = self.transforms(image_1)
+        if self.transforms:
+            image_1 = self.transforms(image_1)
         hist_1 = self.compute_histogram(np.uint16(image_1.permute(1, 2, 0).multiply(2**16 - 1)))
 
         hist_1 = torch.tensor(hist_1.astype(float), dtype=torch.float32)
@@ -571,7 +585,8 @@ class OnlineRandomOrganoidHistPairDataset(Dataset):
             path_2 = self.grouped_examples[selected_class][random_index_2]
             image_2 = imread(path_2)
             image_2 = torch.tensor(image_2.astype(float), dtype=torch.float32).permute(2, 0, 1)[:3, :, :].div(2**16 - 1)
-            image_2 = self.transforms(image_2)
+            if self.transforms:
+                image_2 = self.transforms(image_2)
             hist_2 = self.compute_histogram(np.uint16(image_2.permute(1, 2, 0).multiply(2 ** 16 - 1)))
 
             hist_2 = torch.tensor(hist_2.astype(float), dtype=torch.float32)
@@ -596,7 +611,8 @@ class OnlineRandomOrganoidHistPairDataset(Dataset):
             path_2 = self.grouped_examples[other_selected_class][random_index_2]
             image_2 = imread(path_2)
             image_2 = torch.tensor(image_2.astype(float), dtype=torch.float32).permute(2, 0, 1)[:3, :, :].div(2**16 - 1)
-            image_2 = self.transforms(image_2)
+            if self.transforms:
+                image_2 = self.transforms(image_2)
             hist_2 = self.compute_histogram(np.uint16(image_2.permute(1, 2, 0).multiply(2 ** 16 - 1)))
 
             hist_2 = torch.tensor(hist_2.astype(float), dtype=torch.float32)
@@ -615,150 +631,3 @@ class SquarePad(nn.Module):
         vp = int((max_wh - s[-2]) / 2)
         padding = (hp, vp, hp, vp)
         return F.pad(image, padding, 0.0, 'constant')
-
-
-
-def get_dataset_means_and_stds(
-        data_dir: str,
-        resize_size: int = 512,
-        pad: bool = True,
-        out_dir: str = "dataset_stats"
-):
-    dataset = DeterministicOrganoidDataset(
-        data_dirs=[data_dir],
-        transforms=torch.nn.Sequential(
-            torchvision.transforms.ToTensor(),
-            SquarePad(),
-            torchvision.transforms.Resize(
-                (resize_size, resize_size),
-                interpolation=torchvision.transforms.InterpolationMode.BILINEAR,
-                antialias=True
-            )
-        )
-    )
-
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=64)
-
-    sums = torch.zeros((3,), dtype=torch.float64)
-    squared_sums = torch.zeros((3,), dtype=torch.float64)
-    num_samples = len(dataset) * resize_size ** 2
-
-    with torch.no_grad():
-        for batch_idx, (images, labels) in enumerate(dataloader):
-            sums += torch.sum(images, dim=(0, 2, 3))
-            squared_sums += torch.sum(
-                images ** 2,
-                dim=(0, 2, 3)
-            )
-
-    mean = sums / num_samples
-    squared_mean = squared_sums / num_samples
-    std = torch.sqrt(squared_mean - mean ** 2)
-
-    print(mean)
-    print(std)
-
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-
-    fn = f"stats_r{resize_size} "
-
-
-if __name__ == "__main__":
-    train_dataset = RandomOrganoidPairDataset(
-        ["/run/media/dstein/789e1bf3-b0ea-4a6a-a533-79a346a1ac3e/Organoids New/split/"],
-        split="train",
-        num_batches=100,
-        batch_size=64,
-        transforms=torchvision.transforms.Compose(
-            [
-                SquarePad(),
-                torchvision.transforms.Resize(
-                    (256, 256),
-                    interpolation=torchvision.transforms.InterpolationMode.BILINEAR,
-                    antialias=True
-                )
-            ]
-        ))
-
-    # brightness from 0.5 -> 2.0
-    # contrast from 0.5 -> 2.0
-    # saturation from 0.5 -> 2.0
-    # hue from -0.05 to 0.05
-
-    transform = torchvision.transforms.ColorJitter(
-        brightness=(0.5, 2.0),
-        contrast=(0.5, 2.0),
-        saturation=(0.5, 1.5),
-        hue=(0.05, 0.05)
-    )
-
-    for (image1, image2, label) in train_dataset:
-        image1aug = transform(image1)
-        print(image2.shape)
-        image2aug = transform(image2)
-
-        print(image1.max())
-        print(image1aug.max())
-
-        fig, axes = plt.subplots(2, 2)
-        axes[0, 0].imshow(image1.permute(1, 2, 0))
-        axes[0, 1].imshow(image1aug.permute(1, 2, 0))
-        axes[1, 0].imshow(image2.permute(1, 2, 0))
-        axes[1, 1].imshow(image2aug.permute(1, 2, 0))
-        plt.show()
-
-    # dataset = RandomOrganoidHistPairDataset(
-    #     data_dirs=[
-    #         "/run/media/dstein/789e1bf3-b0ea-4a6a-a533-79a346a1ac3e/Organoids/hist-dataset"
-    #     ],
-    #     split="train"
-    # )
-    #
-    # print(len(dataset))
-    #
-    # for hist1, hist2, target in dataset:
-    #     print(hist1.shape)
-
-    # get_dataset_means_and_stds(
-    #     data_dir="/run/media/dstein/NVMe/Organoid Daten/dataset/train",
-    #     pad=True,
-    #     out_dir="",
-    #     resize_size=256
-    # )
-
-    # train_dataset = RandomOrganoidPairDataset(
-    #     data_dirs=["/run/media/dstein/NVMe/Organoid Daten/dataset/"],
-    #     split="train",
-    #     num_batches=1,
-    #     batch_size=64,
-    #     transforms=torch.nn.Sequential(
-    #         torchvision.transforms.CenterCrop((64, 128)),
-    #         SquarePad(),
-    #         # torchvision.transforms.Resize(
-    #         #     (256, 256),
-    #         #     interpolation=torchvision.transforms.InterpolationMode.BILINEAR,
-    #         #     antialias=True
-    #         # )
-    #     ))
-    # # path_1 = "/run/media/dstein/NVMe/Organoid Daten/dataset/train/6/single_organoid_60.tif"
-    # # image_1 = imread(path_1)
-    # # plt.figure()
-    # # image_1 = torch.tensor(image_1.astype(float), dtype=torch.float32).permute(2, 0, 1).permute(1, 2, 0)
-    # # image_1 = image_1 / 65535
-    # # print(image_1.max())
-    # # print(image_1.min())
-    # #
-    # # resize = torchvision.transforms.Resize((224, 224))
-    # # image_1 = resize(image_1)
-    # #
-    # # plt.imshow(image_1)
-    # # plt.show()
-    # for (image1, image2, target) in train_dataset:
-    #     plt.figure()
-    #     image1 = image1.permute(1, 2, 0) / 65535
-    #     print(image1.max())
-    #     print(image1.min())
-    #
-    #     plt.imshow(image1)
-    #     plt.show()

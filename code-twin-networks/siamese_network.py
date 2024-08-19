@@ -566,8 +566,7 @@ class Trainer:
                  callbacks: CallbackContainer = None,
                  metrics: MetricContainer = None,
                  log_interval=10,
-                 dry_run=False,
-                 output_regularizer=0.0
+                 dry_run=False
                  ):
         self.model = model
         self.device = device
@@ -577,7 +576,6 @@ class Trainer:
         self.metrics = metrics or MetricContainer()
         self.log_interval = log_interval
         self.dry_run = dry_run
-        self.output_regularizer = output_regularizer
 
     def train(self,
               epochs: int,
@@ -620,11 +618,11 @@ class Trainer:
             loss.backward()
             self.optimizer.step()
             if batch_idx % self.log_interval == 0:
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tBCELoss: {:.6f}\t RegLoss: {:.6f}\t {}'.format(
+                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\t {}'.format(
                     epoch, batch_idx * len(images_1), len(train_loader.dataset),
                            100. * batch_idx / len(train_loader),
                            logs["loss"] / (batch_idx + 1), self.metrics.summary_string()
-                      ))
+                ))
                 if self.dry_run:
                     break
         logs["loss"] /= (batch_idx + 1)
@@ -646,12 +644,7 @@ class Trainer:
             for batch_idx, (images_1, images_2, targets) in enumerate(val_loader):
                 images_1, images_2, targets = images_1.to(self.device), images_2.to(self.device), targets.to(
                     self.device)
-                if isinstance(self.model, SiameseNetwork) and self.model.return_penultimate:
-                    outputs, penultimate = self.model(images_1, images_2)
-                elif isinstance(self.model, SiameseNetwork) and not self.model.return_penultimate:
-                    outputs = self.model(images_1, images_2)
-                else:
-                    raise ValueError("Network must be SiameseNetwork.")
+                outputs = self.model(images_1, images_2)
 
                 logs["val_loss"] += self.criterion(outputs, targets).item()  # sum up batch loss
 
@@ -668,8 +661,7 @@ class Trainer:
 
         logs["val_loss"] /= (batch_idx + 1)
 
-        print('\nTest set: Average BCE loss: {:.4f}\t Average Reg. loss: {:.4f}\t'.format(logs["val_bce_loss"], logs[
-            "val_reg_loss"]) + self.metrics.summary_string() + "\n")
+        print('\nTest set: Average Loss: {:.4f}\t {}'.format(logs["val_loss"], self.metrics.summary_string() + "\n"))
 
         logs.update(self.metrics.summary())
         self.metrics.reset()
@@ -687,13 +679,13 @@ def get_metrics() -> MetricContainer:
 def main():
     # Training settings
     parser = argparse.ArgumentParser(description='PyTorch Siamese network for Organoids')
-    parser.add_argument('--data-dirs',
-                        nargs='+',
-                        default=["/run/media/dstein/789e1bf3-b0ea-4a6a-a533-79a346a1ac3e/Organoids New/split/"],
+    parser.add_argument('--data-dir',
+                        type=str,
+                        default="../data/train-100",
                         help="Data directories for input files"
                         )
-    parser.add_argument('--val-data-dirs',
-                        nargs='+',
+    parser.add_argument('--val-data-dir',
+                        type=str,
                         default=None,
                         help="Optional validation data directory"
                         )
@@ -711,16 +703,7 @@ def main():
                         type=float,
                         default=0.0001,
                         metavar='LR',
-                        help='learning rate (default: 1.0)')
-    parser.add_argument('--gamma',
-                        type=float,
-                        default=0.7,
-                        metavar='M',
-                        help='Learning rate step gamma (default: 0.7)')
-    parser.add_argument('--weight-decay',
-                        type=float,
-                        default=0.0,
-                        help='Weight decay parameter for the optimizer (default: 0.0)')
+                        help='learning rate (default: 0.0001)')
     parser.add_argument('--no-cuda',
                         action='store_true',
                         default=False,
@@ -733,7 +716,7 @@ def main():
     parser.add_argument('--model-name',
                         type=str,
                         help='model name',
-                        default="p0.2-256x256-squarePad-color-jitter-correct"
+                        default="test"
                         )
     parser.add_argument('--override',
                         help='Whether to override models under the same name',
@@ -756,7 +739,7 @@ def main():
                         )
     parser.add_argument('--model-dir',
                         type=str,
-                        default="./image-models-colorjitter-2",
+                        default="./twin-network-image-models",
                         help="Where to save checkpoints and such."
                         )
     parser.add_argument('--total-steps',
@@ -769,15 +752,15 @@ def main():
                         default=100,
                         help='How many batches to train for per epoch'
                         )
-    parser.add_argument("--output-regularizer",
+    parser.add_argument('--augment',
                         type=float,
-                        default=0.0,
-                        help="Regularization directly for the output."
+                        help="Augmentation Probability",
+                        default=0.0
                         )
     args = parser.parse_args()
 
-    if args.val_data_dirs is None:
-        args.val_data_dirs = args.data_dirs
+    if args.val_data_dir is None:
+        args.val_data_dir = args.data_dir
 
     epochs = args.total_steps // args.steps_per_epoch
 
@@ -827,8 +810,7 @@ def main():
 
     if args.input_type == InputType.IMAGES:
         train_dataset = RandomOrganoidPairDataset(
-            args.data_dirs,
-            split="train",
+            args.data_dir,
             num_batches=args.steps_per_epoch,
             batch_size=args.batch_size,
             transforms=torchvision.transforms.Compose(
@@ -839,19 +821,18 @@ def main():
                         interpolation=torchvision.transforms.InterpolationMode.BILINEAR,
                         antialias=True
                     ),
-                    torchvision.transforms.RandomHorizontalFlip(p=0.2),
-                    torchvision.transforms.RandomVerticalFlip(p=0.2),
+                    torchvision.transforms.RandomHorizontalFlip(p=args.augment),
+                    torchvision.transforms.RandomVerticalFlip(p=args.augment),
                     RandomApply(RandomExclusiveListApply(
                         choice_modules=nn.ModuleList([
                             torchvision.transforms.RandomRotation(degrees=180)
                         ])
-                    ), p=0.2)
+                    ), p=args.augment)
                 ]
             ))
         # no transforms here
         test_dataset = DeterministicOrganoidPairDataset(
-            args.val_data_dirs,
-            split="test-seen",
+            args.val_data_dir,
             transforms=torch.nn.Sequential(
                 SquarePad(),
                 torchvision.transforms.Resize(
@@ -862,16 +843,13 @@ def main():
             ))
     elif args.input_type == InputType.HISTOGRAM:
         train_dataset = OnlineRandomOrganoidHistPairDataset(
-            args.data_dirs,
-            split="train",
+            args.data_dir,
             num_batches=args.steps_per_epoch,
             batch_size=args.batch_size,
             transforms=None
         )
-        # no transforms here
         test_dataset = OnlineDeterministicOrganoidHistPairDataset(
-            args.val_data_dirs,
-            split="test-seen"
+            args.val_data_dir
         )
     else:
         raise NotImplementedError(f"Input Type {args.input_type} not recognized.")
@@ -887,11 +865,10 @@ def main():
     # model building phase
     model = SiameseNetwork(
         input_type=args.input_type,
-        embedding_dimension=args.embedding_dimension,
-        return_penultimate=args.output_regularizer != 0.0
+        embedding_dimension=args.embedding_dimension
     ).to(device)
 
-    optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    optimizer = optim.AdamW(model.parameters(), lr=args.lr)
 
     metrics = get_metrics()
 
@@ -902,13 +879,12 @@ def main():
         criterion=nn.BCELoss(),
         device=device,
         metrics=metrics,
-        output_regularizer=args.output_regularizer,
         callbacks=CallbackContainer([
             TimeCallback(),
             CSVLogger(os.path.join(model_dir, "history.csv")),
             EarlyStoppingCallback(monitor="val_accuracy", patience=300, mode=MonitorMode.MAX),
             ModelCheckpoint(
-                monitor="val_bce_loss",
+                monitor="val_loss",
                 models_dict={
                     "siamese.pt": model
                 },
@@ -929,7 +905,7 @@ def main():
                     factor=0.5,
                     patience=20
                 ),
-                monitor="bce_loss"
+                monitor="loss"
             )
         ])
     )
