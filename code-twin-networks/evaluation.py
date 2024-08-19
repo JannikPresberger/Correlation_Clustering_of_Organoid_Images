@@ -1,3 +1,4 @@
+import argparse
 import csv
 import os
 from enum import Enum
@@ -5,11 +6,10 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from torch.nn import Sequential, Conv2d, Linear, BatchNorm2d, Conv1d, BatchNorm1d
+from torch.nn import Conv2d, Linear, BatchNorm2d, Conv1d, BatchNorm1d
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from model import Concatenation
 from siamese_network import SiameseNetwork, SquarePad, InputType
 import torch, torchvision
 import h5py
@@ -177,10 +177,7 @@ def analyse_test_set_only(
         hdf_f.create_dataset('file_ids', data=file_ids, dtype=h5py.string_dtype('utf-8'))
 
 
-
 def plot_roc_curves(in_dir: str):
-
-
     for file in Path(in_dir).glob("**/*_roc.csv"):
         out_path = str(file).replace(".csv", ".png")
         out_path_join_thresholds = str(file).replace(".csv", "_join_thresholds.png")
@@ -202,18 +199,17 @@ def plot_roc_curves(in_dir: str):
         thresholds = [line["threshold"] for line in data]
 
         cut_precisions = [
-            line["tc"]/(line["tc"] + line["fc"]) if (line["tc"] + line["fc"] > 0) else 1 for line in data
+            line["tc"] / (line["tc"] + line["fc"]) if (line["tc"] + line["fc"] > 0) else 1 for line in data
         ]
         cut_recall = [
-            line["tc"]/(line["tc"] + line["fj"]) for line in data
+            line["tc"] / (line["tc"] + line["fj"]) for line in data
         ]
         join_precision = [
-            line["tj"]/(line["tj"] + line["fj"]) if (line["tj"] + line["fj"] > 0) else 1 for line in data
+            line["tj"] / (line["tj"] + line["fj"]) if (line["tj"] + line["fj"] > 0) else 1 for line in data
         ]
         join_recall = [
-            line["tj"]/(line["tj"] + line["fc"]) for line in data
+            line["tj"] / (line["tj"] + line["fc"]) for line in data
         ]
-
 
         plt.figure()
         plt.title("PR-Curve")
@@ -243,9 +239,8 @@ def plot_roc_curves(in_dir: str):
         plt.savefig(out_path_cut_thresholds)
         plt.close()
 
+
 def plot_cost_distributions(in_dir: str):
-
-
     for file in Path(in_dir).glob("**/*.h5"):
         true_joins = []
         true_cuts = []
@@ -281,7 +276,6 @@ def plot_cost_distributions(in_dir: str):
             plt.legend()
             plt.savefig(str(file).replace(".h5", "_cum-distributions.png"))
             plt.close()
-
 
 
 def analyse_unseen_and_test_set(
@@ -376,8 +370,8 @@ def analyse_unseen_and_test_set(
             labels.extend(current_labels)
             file_ids.extend([os.path.split(fid)[1] for fid in current_file_ids])
 
-        subsets.extend(['UNSEEN']*len(unseen_dataset))
-        subsets.extend(['TEST']*len(test_data_set))
+        subsets.extend(['UNSEEN'] * len(unseen_dataset))
+        subsets.extend(['TEST'] * len(test_data_set))
 
         pair_ds = PairwiseDataset(embeddings.cpu(), labels)
         pair_ds_loader = DataLoader(pair_ds, batch_size=2 ** 18, num_workers=os.cpu_count())
@@ -421,6 +415,7 @@ def analyze_model_weights(
 
     def get_params_(model):
         return filter(lambda p: p.requires_grad, model.parameters())
+
     def get_param_number(model):
         model_parameters = get_params_(model)
         return sum([np.prod(p.size()) for p in model_parameters])
@@ -428,7 +423,6 @@ def analyze_model_weights(
     model = load_siamese_network(model_dir, analysis_mode)
 
     model.eval()
-
 
     # print(model)
     # print("Trainable Model Parameters: ", get_param_number(model))
@@ -465,7 +459,7 @@ def check_symmetry(
 ):
     with h5py.File(path_to_h5_file, "r") as f:
         affinities = np.array(f["affinities"])
-        log_likelihoods = np.log((1-affinities)/affinities)
+        log_likelihoods = np.log((1 - affinities) / affinities)
         symmetric_difference = affinities - affinities.T
 
         print("Min Difference: ", symmetric_difference.min())
@@ -492,74 +486,49 @@ def check_symmetry(
         print("Too Small Log-Odds:", too_low_log / (affinities.size - affinities.shape[0]))
 
 
-
-
 if __name__ == "__main__":
-    # plot_cost_distributions("./models")
-    # plot_roc_curves("./models")
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--test-100-dir',
+        type=str,
+        default='../data/test-100'
+    )
+    parser.add_argument(
+        '--test-30-dir',
+        type=str,
+        default='../data/test-30'
+    )
+    parser.add_argument('--input-type',
+                        type=InputType,
+                        default=InputType.IMAGES,
+                        choices=[ip for ip in InputType]
+                        )
+    parser.add_argument('--model-dir',
+                        type=str,
+                        required=True)
+    args = parser.parse_args()
 
+    analyse_test_set_only(
+        model_dir=args.model_dir,
+        data_dir=args.test_100_dir,
+        out_fn=f"test.h5",
+        analysis_mode=AnalysisMode.LATEST_MODEL,
+        input_type=args.input_type,
+    )
 
-    # check_symmetry("/home/dstein/GitRepos/PhD/organoid-matching/new-image-models/p0.0-256x256-squarePad/analysis/test.h5")
+    analyse_test_set_only(
+        model_dir=args.model_dir,
+        data_dir=args.test_30_dir,
+        out_fn=f"test-unseen.h5",
+        analysis_mode=AnalysisMode.LATEST_MODEL,
+        input_type=args.input_type,
+    )
 
-
-    mdir = "./histogram-models-colorjitter"
-
-    # for model_dir in os.listdir(mdir):
-    #     analyze_model_weights(
-    #         model_dir=os.path.join(mdir, model_dir),
-    #         analysis_mode=AnalysisMode.LATEST_MODEL
-    #     )
-
-    # for val_set in validation_sets:
-    for model_dir in os.listdir(mdir):
-
-        # print(f"Evaluation for {model_dir}")
-        # print(100*"=")
-        # print("test.h5")
-        # print(100*"-")
-        #
-        # if os.path.exists(os.path.join(mdir, model_dir, "analysis", "test.h5")):
-        #     check_symmetry(os.path.join(mdir, model_dir, "analysis", "test.h5"))
-        # else:
-        #     print("Doesn't exist.")
-        # print("test-and-unseen.h5")
-        # print(100*"-")
-        # if os.path.exists(os.path.join(mdir, model_dir, "analysis", "test-and-unseen.h5")):
-        #     check_symmetry(os.path.join(mdir, model_dir, "analysis", "test-and-unseen.h5"))
-        # else:
-        #     print("Doesnt exist.")
-        #
-        # print("unseen.h5")
-        # print(100*"-")
-        # if os.path.exists(os.path.join(mdir, model_dir, "analysis", "test-unseen.h5")):
-        #     check_symmetry(os.path.join(mdir, model_dir, "analysis", "test-unseen.h5"))
-        # else:
-        #     print("Doesn't exist.")
-        #
-        # print()
-
-
-        analyse_test_set_only(
-            model_dir=os.path.join(mdir, model_dir),
-            data_dir=f"/run/media/dstein/789e1bf3-b0ea-4a6a-a533-79a346a1ac3e/Organoids New/histograms/test",
-            out_fn=f"test.h5",
-            analysis_mode=AnalysisMode.LATEST_MODEL,
-            input_type=InputType.HISTOGRAM if ("hist" in mdir) else InputType.IMAGES
-        )
-
-        analyse_test_set_only(
-            model_dir=os.path.join(mdir, model_dir),
-            data_dir=f"/run/media/dstein/789e1bf3-b0ea-4a6a-a533-79a346a1ac3e/Organoids New/histograms/test-unseen",
-            out_fn=f"test-unseen.h5",
-            analysis_mode=AnalysisMode.LATEST_MODEL,
-            input_type=InputType.HISTOGRAM if ("hist" in mdir) else InputType.IMAGES
-        )
-
-        analyse_unseen_and_test_set(
-            model_dir=os.path.join(mdir, model_dir),
-            test_set_data_dir=f"/run/media/dstein/789e1bf3-b0ea-4a6a-a533-79a346a1ac3e/Organoids New/histograms/test",
-            unseen_data_dir=f"/run/media/dstein/789e1bf3-b0ea-4a6a-a533-79a346a1ac3e/Organoids New/histograms/test-unseen",
-            out_fn="test-and-unseen.h5",
-            analysis_mode=AnalysisMode.LATEST_MODEL,
-            input_type=InputType.HISTOGRAM if ("hist" in mdir) else InputType.IMAGES
-        )
+    analyse_unseen_and_test_set(
+        model_dir=args.model_dir,
+        test_set_data_dir=args.test_100_dir,
+        unseen_data_dir=args.test_30_dir,
+        out_fn="test-and-unseen.h5",
+        analysis_mode=AnalysisMode.LATEST_MODEL,
+        input_type=args.input_type
+    )
