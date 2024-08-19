@@ -8,8 +8,6 @@ import time
 from enum import Enum
 from typing import List, Callable, Dict, Union
 
-import matplotlib.pyplot as plt
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -19,9 +17,7 @@ from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau, ExponentialLR, C
 from torch.utils.data import Dataset
 
 from datasets import RandomExclusiveListApply, RandomApply, RandomOrganoidPairDataset, DeterministicOrganoidPairDataset, \
-    SquarePad, RandomOrganoidHistPairDataset, DeterministicOrganoidHistPairDataset, OnlineRandomOrganoidHistPairDataset, \
-    OnlineDeterministicOrganoidHistPairDataset
-from defaults import MODELS_DIR
+    SquarePad, OnlineRandomOrganoidHistPairDataset, OnlineDeterministicOrganoidHistPairDataset
 from model import InputType, SiameseNetwork
 
 
@@ -845,8 +841,7 @@ def main():
         train_dataset = OnlineRandomOrganoidHistPairDataset(
             args.data_dir,
             num_batches=args.steps_per_epoch,
-            batch_size=args.batch_size,
-            transforms=None
+            batch_size=args.batch_size
         )
         test_dataset = OnlineDeterministicOrganoidHistPairDataset(
             args.val_data_dir

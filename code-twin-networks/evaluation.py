@@ -505,7 +505,8 @@ if __name__ == "__main__":
                         )
     parser.add_argument('--model-dir',
                         type=str,
-                        required=True)
+                        default="./models/tni-p0.2",
+                        required=False)
     args = parser.parse_args()
 
     analyse_test_set_only(
