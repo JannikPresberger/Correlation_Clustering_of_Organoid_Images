@@ -1,1 +1,0 @@
-MODELS_DIR = "./models"

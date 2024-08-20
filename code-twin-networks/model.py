@@ -19,7 +19,6 @@ class Concatenation(torch.nn.Module):
         return torch.cat([x1, x2], 1)
 
 
-
 def build_embedding_network(
         input_type: InputType,
         embedding_dimension: int

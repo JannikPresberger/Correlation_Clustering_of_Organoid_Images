@@ -1,19 +1,16 @@
 import argparse
-import csv
 import os
 from enum import Enum
-from pathlib import Path
 
-import matplotlib.pyplot as plt
+import h5py
 import numpy as np
-from torch.nn import Conv2d, Linear, BatchNorm2d, Conv1d, BatchNorm1d
+import torch
+import torchvision
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from siamese_network import SiameseNetwork, SquarePad, InputType
-import torch, torchvision
-import h5py
 from datasets import DeterministicOrganoidDataset, DeterministicOrganoidHistDataset
+from siamese_network import SiameseNetwork, SquarePad, InputType
 
 
 class AnalysisMode(Enum):
@@ -177,107 +174,6 @@ def analyse_test_set_only(
         hdf_f.create_dataset('file_ids', data=file_ids, dtype=h5py.string_dtype('utf-8'))
 
 
-def plot_roc_curves(in_dir: str):
-    for file in Path(in_dir).glob("**/*_roc.csv"):
-        out_path = str(file).replace(".csv", ".png")
-        out_path_join_thresholds = str(file).replace(".csv", "_join_thresholds.png")
-
-        out_path_cut_thresholds = str(file).replace(".csv", "_cut_thresholds.png")
-
-        with open(file, "r") as f:
-            reader = csv.DictReader(f)
-
-            data = [line for line in reader]
-
-        for line in data:
-            line["threshold"] = float(line["threshold"])
-            line["tj"] = float(line["tj"])
-            line["tc"] = float(line["tc"])
-            line["fc"] = float(line["fc"])
-            line["fj"] = float(line["fj"])
-
-        thresholds = [line["threshold"] for line in data]
-
-        cut_precisions = [
-            line["tc"] / (line["tc"] + line["fc"]) if (line["tc"] + line["fc"] > 0) else 1 for line in data
-        ]
-        cut_recall = [
-            line["tc"] / (line["tc"] + line["fj"]) for line in data
-        ]
-        join_precision = [
-            line["tj"] / (line["tj"] + line["fj"]) if (line["tj"] + line["fj"] > 0) else 1 for line in data
-        ]
-        join_recall = [
-            line["tj"] / (line["tj"] + line["fc"]) for line in data
-        ]
-
-        plt.figure()
-        plt.title("PR-Curve")
-        plt.xlabel("Recall")
-        plt.ylabel("Precision")
-        plt.plot(cut_recall, cut_precisions, label="Cuts", marker=".")
-        plt.plot(join_recall, join_precision, label="Joins", marker=".")
-        plt.legend()
-        plt.savefig(out_path)
-        plt.close()
-
-        plt.figure()
-        plt.title("Joins")
-        plt.xlabel("Threshold")
-        plt.plot(thresholds, join_recall, label="Recall", marker=".")
-        plt.plot(thresholds, join_precision, label="Precision", marker=".")
-        plt.legend()
-        plt.savefig(out_path_join_thresholds)
-        plt.close()
-
-        plt.figure()
-        plt.title("Cuts")
-        plt.xlabel("Threshold")
-        plt.plot(thresholds, cut_recall, label="Recall", marker=".")
-        plt.plot(thresholds, cut_precisions, label="Precision", marker=".")
-        plt.legend()
-        plt.savefig(out_path_cut_thresholds)
-        plt.close()
-
-
-def plot_cost_distributions(in_dir: str):
-    for file in Path(in_dir).glob("**/*.h5"):
-        true_joins = []
-        true_cuts = []
-
-        with h5py.File(file) as f:
-            labels = f["labels"][()].astype(dtype=int)
-            affinities = f["affinities"][()]
-
-            for i in range(len(labels)):
-                for j in range(i):
-                    if labels[i] == labels[j]:
-                        true_joins.append(1 - (affinities[i, j] + affinities[j, i]) / 2)
-                    else:
-                        true_cuts.append(1 - (affinities[i, j] + affinities[j, i]) / 2)
-
-            true_joins = np.array(true_joins)
-            true_cuts = np.array(true_cuts)
-
-            true_joins = np.sort(true_joins)
-            yj = np.cumsum(true_joins)
-            yj = yj / yj[-1]
-            true_cuts = np.sort(true_cuts)
-            yc = np.cumsum(true_cuts)
-            yc = yc / yc[-1]
-
-            plt.figure()
-            plt.xlim(-0.1, 1.1)
-            plt.ylim(0, 1)
-            plt.xlabel("p (cut)")
-            plt.ylabel("Fraction of Coefficients")
-            plt.plot(true_joins, yj, label="True Joins")
-            plt.plot(true_cuts, yc, label="True Cuts")
-            plt.legend()
-            plt.savefig(str(file).replace(".h5", "_cum-distributions.png"))
-            plt.close()
-
-
 def analyse_unseen_and_test_set(
         model_dir: str,
         unseen_data_dir: str,
@@ -393,97 +289,6 @@ def analyse_unseen_and_test_set(
         hdf_f.create_dataset('labels', data=labels, dtype=h5py.string_dtype('utf-8'))
         hdf_f.create_dataset('subsets', data=subsets, dtype=h5py.string_dtype('utf-8'))
         hdf_f.create_dataset('file_ids', data=file_ids, dtype=h5py.string_dtype('utf-8'))
-
-
-def analyze_model_weights(
-        model_dir: str,
-        analysis_mode: AnalysisMode = AnalysisMode.LATEST_MODEL
-):
-    if analysis_mode == AnalysisMode.LATEST_MODEL:
-        out_dir = os.path.join(model_dir, "analysis")
-    elif analysis_mode == AnalysisMode.BEST_VAL_LOSS:
-        out_dir = os.path.join(model_dir, "val_loss_checkpoints", "analysis")
-    elif analysis_mode == AnalysisMode.BEST_VAL_ACCURACY:
-        out_dir = os.path.join(model_dir, "val_accuracy_checkpoints", "analysis")
-    else:
-        raise ValueError("Unknown Analysis Mode.")
-
-    out_dir = os.path.join(out_dir, "model_weights")
-
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-
-    def get_params_(model):
-        return filter(lambda p: p.requires_grad, model.parameters())
-
-    def get_param_number(model):
-        model_parameters = get_params_(model)
-        return sum([np.prod(p.size()) for p in model_parameters])
-
-    model = load_siamese_network(model_dir, analysis_mode)
-
-    model.eval()
-
-    # print(model)
-    # print("Trainable Model Parameters: ", get_param_number(model))
-
-    minimum = +10000000000
-    maximum = -10000000000
-
-    params_number = 0
-    for name, module in model.named_modules():
-        # print(name, module)
-        if isinstance(module, (Conv2d, Conv1d, BatchNorm2d, BatchNorm1d, Linear)):
-            params_number += get_param_number(module)
-
-            params = list(get_params_(module))
-
-            count = 0
-            for param_group in params:
-                minimum = min(minimum, np.min(param_group.detach().numpy().flatten()))
-                maximum = max(maximum, np.max(param_group.detach().numpy().flatten()))
-
-                plt.figure()
-                plt.hist(param_group.detach().numpy().flatten(), bins=100)
-
-                plt.savefig(os.path.join(out_dir, f"{type(module).__name__}_{name}_{count}.pdf"))
-                plt.close()
-                count += 1
-
-    print("Minimum Parameter Value: ", minimum)
-    print("Maximum Parameter Value: ", maximum)
-
-
-def check_symmetry(
-        path_to_h5_file: str
-):
-    with h5py.File(path_to_h5_file, "r") as f:
-        affinities = np.array(f["affinities"])
-        log_likelihoods = np.log((1 - affinities) / affinities)
-        symmetric_difference = affinities - affinities.T
-
-        print("Min Difference: ", symmetric_difference.min())
-        print("Max Difference: ", symmetric_difference.max())
-
-        plt.figure()
-        plt.hist(symmetric_difference.flatten(), bins=300)
-        # plt.show()
-
-        too_big = (affinities > 0.99).sum()
-        # correct for diagonal elements
-        too_low = (affinities < 0.01).sum() - affinities.shape[0]
-
-        print("Too Big: ", too_big / (affinities.size - affinities.shape[0]))
-        print("Too Small", too_low / (affinities.size - affinities.shape[0]))
-
-        print("Minimum Log-Odds: ", log_likelihoods.min())
-        print("Maximum Log-Odds: ", log_likelihoods.max())
-
-        too_big_log = (log_likelihoods > 4).sum()
-        too_low_log = (log_likelihoods < -4).sum() - affinities.shape[0]
-
-        print("Too Big Log-Odds: ", too_big_log / (affinities.size - affinities.shape[0]))
-        print("Too Small Log-Odds:", too_low_log / (affinities.size - affinities.shape[0]))
 
 
 if __name__ == "__main__":
