@@ -16,10 +16,8 @@ If you find the paper or source code valuable, please cite
 }
 ```
 
-
-
 ## Data Preparation
-Download the data at INSERT.
+Download the data [here](https://doi.org/10.25532/OPARA-598).
 
 Create the following directory structure with the data:
 
