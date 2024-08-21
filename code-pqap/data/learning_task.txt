@@ -1,0 +1,10 @@
+parameter_file=model_parameters.txt
+features=---name of feature vector file---
+search_strat=SEL_STRAT_SIM_ANN
+search_dim_order=SD_UNARY_TO_QUADR_WEIGHT,SD_COLOR_TO_DIST_WEIGHT,SD_DIST_OFFSET,SD_COLOR_OFFSET,SD_ANGLE_OFFSET
+learning_metric=LM_F1_SCORE
+ref_clustering=---name of reference clustering file---
+step_size=0.1
+init_temp=0.2
+cooling_rate=0.99
+std_dev=0.05

@@ -1,0 +1,5 @@
+color_cost_offset=0.3
+dist_cost_offset=0.3
+angle_cost_offset=0.3
+color_to_dist_weight=0.5
+unary_to_quadr_weight=0.5

@@ -1,0 +1,5 @@
+color_cost_offset=0.229732
+dist_cost_offset=0.325607
+angle_cost_offset=0.041533
+color_to_dist_weight=0.106945
+unary_to_quadr_weight=0.1
