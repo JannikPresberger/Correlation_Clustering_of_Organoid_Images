@@ -23,9 +23,20 @@ SOFTWARE.
 --------------------------------------------------------------------------------
 Third-party code included in this repository keeps its own license:
 
-- include/andres/** (code-pqap and code-twin-networks/correlation-clustering):
-  libraries by Bjoern Andres and contributors (https://github.com/bjoern-andres),
-  MIT License.
+- include/andres/ (code-pqap and code-twin-networks/correlation-clustering):
+  header libraries by Bjoern Andres and contributors (https://github.com/bjoern-andres):
+  - graph (all files not listed below): Copyright (c) by Bjoern Andres,
+    BSD-style license, see include/andres/LICENSE.
+  - marray (code-pqap only: marray.hxx, marray-bmp.hxx, marray-hdf5.hxx,
+    marray-png.hxx, hdf5.hxx): Copyright (c) 2016 by Bjoern Andres,
+    BSD-style license, see code-pqap/include/andres/LICENSE-marray.
+  - partition-comparison.hxx (in correlation-clustering under andres/graph/):
+    Copyright (c) 2016 by Bjoern Andres, MIT License,
+    see include/andres/LICENSE-partition-comparison.
+  Exceptions in code-twin-networks/correlation-clustering/include/andres/graph/:
+  - multicut/edge-label-mask.hxx is our own code (MIT License above).
+  - multicut/greedy-additive.hxx and hdf5/hdf5.hxx are modified by us
+    (greedyAdditiveEdgeContractionCompleteGraph, HDF5 string types).
 - code-pqap/include/andres/graph/multicut/{cycle-packing,preprocessing}.hxx:
   Copyright (c) Jan-Hendrik Lange 2018.
 - code-twin-networks/correlation-clustering/include/helpers/argparse.hxx:
