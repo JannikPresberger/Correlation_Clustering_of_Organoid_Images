@@ -56,9 +56,9 @@ The script also links the sets into `code-pqap/data/images/image_sets` under the
 
 ## Requirements
 - Linux, CMake >= 3.12, a C++17 compiler
-- [Gurobi](https://www.gurobi.com/) (tested with 11.0.2 and 12.0.2) with a valid license; set `GUROBI_HOME`
+- [Gurobi](https://www.gurobi.com/) (tested with 11.0.2, 12.0.2 and 13.0.1) with a valid license; set `GUROBI_HOME`
 - HDF5 with C++ bindings (e.g. `hdf5-devel` / `libhdf5-dev`)
-- Twin networks: Python 3.9 to 3.12, see `code-twin-networks/requirements.txt`
+- Twin networks: Python >= 3.12, see `code-twin-networks/requirements.txt`
 - PQAP: additionally MPI, OpenCV and the Python development headers with NumPy
 
 ## Twin Neural Networks

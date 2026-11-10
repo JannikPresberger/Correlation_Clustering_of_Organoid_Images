@@ -36,7 +36,10 @@ def load_siamese_network(
     else:
         raise ValueError(f"Analysis Mode {analysis_mode} not supported")
 
-    kwargs, model_state_dict = torch.load(model_path, map_location=device)
+    # The checkpoints store [model kwargs, state dict]; the kwargs contain an InputType,
+    # which has to be allowed explicitly for torch.load with weights_only=True.
+    with torch.serialization.safe_globals([InputType]):
+        kwargs, model_state_dict = torch.load(model_path, map_location=device, weights_only=True)
 
     model = SiameseNetwork(**kwargs)
 
@@ -252,16 +255,16 @@ def analyse_unseen_and_test_set(
         embedding_network = list(siamese_network.children())[0]
         classifier_head = TwoInputSequential(list(siamese_network.children())[1:])
 
-        embeddings = torch.empty(size=(0,)).to('cuda')
+        embeddings = torch.empty(size=(0,)).to(device)
 
         for batch_idx, (images, current_labels, current_file_ids) in enumerate(tqdm(dataloader)):
-            images = images.to('cuda')
+            images = images.to(device)
             embeddings = torch.cat([embeddings, embedding_network(images)], dim=0)
             labels.extend(current_labels)
             file_ids.extend([os.path.split(fid)[1] for fid in current_file_ids])
 
         for batch_idx, (images, current_labels, current_file_ids) in enumerate(tqdm(test_set_dataloader)):
-            images = images.to('cuda')
+            images = images.to(device)
             embeddings = torch.cat([embeddings, embedding_network(images)], dim=0)
             labels.extend(current_labels)
             file_ids.extend([os.path.split(fid)[1] for fid in current_file_ids])
@@ -274,7 +277,7 @@ def analyse_unseen_and_test_set(
 
         for batch_idx, ((indices1, images1, labels1), (indices2, images2, labels2)) in enumerate(
                 tqdm(pair_ds_loader)):
-            images1, images2 = images1.to('cuda'), images2.to('cuda')
+            images1, images2 = images1.to(device), images2.to(device)
             siamese_output = classifier_head(images1, images2)
 
             for num in range(len(siamese_output)):

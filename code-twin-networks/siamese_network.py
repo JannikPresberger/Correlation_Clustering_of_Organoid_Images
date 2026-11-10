@@ -219,6 +219,12 @@ def main():
                         help="Augmentation Probability",
                         default=0.0
                         )
+    parser.add_argument('--num-workers',
+                        type=int,
+                        default=None,
+                        help="Number of data loader workers when training on CUDA (default: all available CPUs). "
+                             "The random training pairs depend on this number, so use the same value to repeat a run."
+                        )
     args = parser.parse_args()
 
     if args.val_data_dir is None:
@@ -260,7 +266,7 @@ def main():
         'batch_size': args.val_batch_size
     }
     if use_cuda:
-        num_workers = len(os.sched_getaffinity(0))
+        num_workers = args.num_workers if args.num_workers is not None else len(os.sched_getaffinity(0))
         print(f"Running with {num_workers} workers...")
         cuda_kwargs = {
             'num_workers': num_workers,

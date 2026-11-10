@@ -1,7 +1,13 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.12...3.31)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
 
-project(correlation-clustering-of-organoid-images)
+project(correlation-clustering-of-organoid-images CXX)
+
+# The bundled andres headers rely on std::allocator members removed in C++20,
+# and compilers such as GCC >= 16 default to C++20.
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 enable_testing()
 
 include_directories(include)

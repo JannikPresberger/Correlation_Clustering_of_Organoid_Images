@@ -6,9 +6,9 @@
 - You created the correct data directory structure
 
 ## Python Virtual Environment
-We tested with Python3.9. Run the following commands
+We tested with Python3.12. Run the following commands
 ```shell
-python3.9 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
