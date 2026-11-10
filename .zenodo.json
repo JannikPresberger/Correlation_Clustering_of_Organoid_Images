@@ -1,0 +1,40 @@
+{
+  "title": "Correlation Clustering of Organoid Images: Code",
+  "upload_type": "software",
+  "version": "1.0.0",
+  "description": "<p>Code for the paper <em>Correlation Clustering of Organoid Images</em> (GCPR 2024). It contains (i) twin neural networks (TNI, TNH) that estimate the probability that two organoid images show organoids of the same class, (ii) a partial quadratic assignment problem (PQAP) formulation for the same task, and (iii) solvers for the resulting correlation clustering problems.</p><p>The image data is available separately at <a href=\"https://doi.org/10.25532/OPARA-598\">https://doi.org/10.25532/OPARA-598</a>; the script <code>download_data.sh</code> downloads it.</p>",
+  "license": "MIT",
+  "access_right": "open",
+  "language": "eng",
+  "keywords": [
+    "correlation clustering",
+    "organoids",
+    "microscopy images",
+    "twin neural networks",
+    "quadratic assignment problem"
+  ],
+  "creators": [
+    {
+      "name": "Presberger, Jannik",
+      "affiliation": "Faculty of Computer Science, TU Dresden, Germany"
+    },
+    {
+      "name": "Stein, David",
+      "affiliation": "Faculty of Computer Science, TU Dresden, Germany"
+    }
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.1007/978-3-031-85181-0_15",
+      "relation": "isSupplementTo",
+      "resource_type": "publication-conferencepaper",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.25532/OPARA-598",
+      "relation": "references",
+      "resource_type": "dataset",
+      "scheme": "doi"
+    }
+  ]
+}

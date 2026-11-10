@@ -1,2 +1,16 @@
 .idea
 *.tif
+
+# Downloaded data (see download_data.sh)
+/data/*
+!/data/.keep
+/code-pqap/data/images/image_sets/*
+!/code-pqap/data/images/image_sets/.gitkeep
+
+# Build directories
+/code-pqap/build*/
+/code-twin-networks/correlation-clustering/build*/
+
+# Trained models and generated results
+/code-twin-networks/models/*
+!/code-twin-networks/models/.keep

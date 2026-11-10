@@ -1,0 +1,66 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the paper below."
+title: "Correlation Clustering of Organoid Images: Code"
+type: software
+version: 1.0.0
+license: MIT
+repository-code: "https://github.com/JannikPresberger/Correlation_Clustering_of_Organoid_Images"
+abstract: >-
+  Code for the GCPR 2024 paper "Correlation Clustering of Organoid Images":
+  twin neural networks (TNI, TNH) and a partial quadratic assignment problem
+  (PQAP) formulation for estimating the dissimilarity of organoid images,
+  followed by correlation clustering of the images.
+keywords:
+  - correlation clustering
+  - organoids
+  - microscopy images
+  - twin neural networks
+  - quadratic assignment problem
+authors:
+  - family-names: Presberger
+    given-names: Jannik
+    affiliation: "Faculty of Computer Science, TU Dresden, Germany"
+  - family-names: Stein
+    given-names: David
+    affiliation: "Faculty of Computer Science, TU Dresden, Germany"
+references:
+  - type: data
+    title: "Correlation Clustering of Organoid Images: Data"
+    doi: 10.25532/OPARA-598
+    publisher:
+      name: Technische Universität Dresden
+    year: 2024
+    authors:
+      - family-names: Presberger
+        given-names: Jannik
+      - family-names: Keshara
+        given-names: Rashmiparvathi
+      - family-names: Stein
+        given-names: David
+      - family-names: Kim
+        given-names: Yung Hae
+      - family-names: Grapin-Botton
+        given-names: Anne
+      - family-names: Andres
+        given-names: Bjoern
+preferred-citation:
+  type: conference-paper
+  title: "Correlation Clustering of Organoid Images"
+  collection-title: "Pattern Recognition (DAGM GCPR 2024)"
+  doi: 10.1007/978-3-031-85181-0_15
+  conference:
+    name: "German Conference on Pattern Recognition (GCPR)"
+  year: 2024
+  authors:
+    - family-names: Presberger
+      given-names: Jannik
+    - family-names: Keshara
+      given-names: Rashmiparvathi
+    - family-names: Stein
+      given-names: David
+    - family-names: Kim
+      given-names: Yung Hae
+    - family-names: Grapin-Botton
+      given-names: Anne
+    - family-names: Andres
+      given-names: Bjoern
