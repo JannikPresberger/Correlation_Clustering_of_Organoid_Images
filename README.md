@@ -1,4 +1,7 @@
 # Correlation Clustering of Organoid Images
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24495538.svg)](https://doi.org/10.5281/zenodo.24495538)
+
 This repository contains the code for the paper "Correlation Clustering of Organoid Images", accepted at GCPR'24.
 
 - Data: [https://doi.org/10.25532/OPARA-598](https://doi.org/10.25532/OPARA-598) (CC BY 4.0)
